@@ -2,11 +2,14 @@ package br.com.forumhub.domain.topico;
 
 
 import br.com.forumhub.controller.dto.TopicoCreateRequest;
-import br.com.forumhub.controller.dto.TopicoResponse;
 import br.com.forumhub.controller.dto.TopicoListResponse;
+import br.com.forumhub.controller.dto.TopicoResponse;
 import br.com.forumhub.controller.dto.TopicoUpdateRequest;
+import br.com.forumhub.domain.usuario.Usuario;
 import br.com.forumhub.infra.exception.DuplicateTopicException;
 import br.com.forumhub.infra.exception.TopicoNotFoundException;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -36,7 +39,7 @@ public class TopicoService {
         if (repository.existsByTituloAndMensagem(titulo, mensagem)) {
             throw new DuplicateTopicException("Tópico duplicado (mesmo título e mensagem).");
         }
-        String autor = resolveAutorAtual();
+        String autor = nomeUsuarioAutenticado();
         Topico entity = new Topico(titulo, mensagem, autor, curso);
         Topico salvo = repository.save(entity);
         return TopicoResponse.from(salvo);
@@ -84,7 +87,11 @@ public class TopicoService {
         repository.deleteById(id);
     }
 
-    private String resolveAutorAtual() {
-        return "ANONIMO"; // TODO: substituir por usuário autenticado quando houver JWT
+    private String nomeUsuarioAutenticado() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth != null && auth.isAuthenticated() && auth.getPrincipal() instanceof Usuario u) {
+            if (u.getNome() != null && !u.getNome().isBlank()) return u.getNome();
+        }
+        return "ANONIMO";
     }
 }
